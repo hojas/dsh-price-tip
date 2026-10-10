@@ -391,7 +391,10 @@ function formatPrice(value) {
       '.dpt_icon{flex:none;display:inline-flex;color:var(--dsw-alias-label-tertiary)}',
       '.dpt_offPeak .dpt_icon{color:var(--dsw-alias-state-success-primary)}',
       '.dpt_peak .dpt_icon{color:var(--dsw-alias-state-warn-primary)}',
-      '.dpt_label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.dpt_label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}',
+      '.dpt_badgeCheer{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;font-size:13px;font-weight:500}',
+      '.dpt_offPeak .dpt_badgeCheer{color:var(--dsw-alias-state-success-primary)}',
+      '.dpt_peak .dpt_badgeCheer{color:var(--dsw-alias-state-warn-primary)}',
       '.dpt_count{margin-left:auto;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;font-variant-numeric:tabular-nums;flex:none}',
       '.dpt_panel{position:fixed;left:12px;bottom:96px;z-index:40;isolation:isolate;width:392px;max-width:calc(100vw - 24px);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border-radius:12px;box-shadow:var(--dsw-elevation-prominent);overflow:hidden}',
       // The host menu colour is 94% opaque, so a translucent panel lets the page behind
@@ -674,6 +677,12 @@ function formatPrice(value) {
             h('span', { key: 'icon', className: 'dpt_icon' },
               h(offPeak ? IconMoon : IconSun, { size: roomy ? 16 : 18 })),
             roomy ? h('span', { key: 'label', className: 'dpt_label' }, stateLabel) : null,
+            // The slogan rides along in the sidebar so the nudge is visible without
+            // opening the panel; it ellipsizes first when the column is narrow.
+            roomy ? h('span', {
+              key: 'cheer',
+              className: 'dpt_badgeCheer',
+            }, t(offPeak ? 'cheer.offPeak' : 'cheer.peak')) : null,
             roomy ? h('span', { key: 'count', className: 'dpt_count' }, countdown) : null,
           ]),
         ]),
