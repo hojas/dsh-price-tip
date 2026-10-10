@@ -169,17 +169,19 @@ window.__ModuleLoader__.load({
 
     /**
      * Format an instant in the viewer's local time, adding the date when it is
-     * not today.
+     * not today. The clock style follows the **Harness** locale rather than the
+     * browser's, so a Chinese interface shows 24-hour time instead of "09:00 AM".
      * @param instantMs - epoch milliseconds, or null.
+     * @param localeId - active Harness locale id (`zh`, `en`, …); undefined follows the browser.
      * @returns the local time text.
      */
-    function localInstantText(instantMs) {
+    function localInstantText(instantMs, localeId) {
       if (instantMs === null) return '—';
       const date = new Date(instantMs);
       const sameDay = date.toDateString() === new Date().toDateString();
-      return new Intl.DateTimeFormat(undefined, sameDay
+      return new Intl.DateTimeFormat(localeId ?? undefined, sameDay
         ? { hour: '2-digit', minute: '2-digit' }
-        : { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
+        : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
     }
 
     /** Crescent-moon glyph: off-peak. @param props - size in pixels. @returns the icon element. */
@@ -208,10 +210,10 @@ window.__ModuleLoader__.load({
 
     /**
      * Detail panel: current state, live countdown, the rule, and the price table.
-     * @param props - translate seat, current status, and close callback.
+     * @param props - translate seat, current status, active locale, and close callback.
      * @returns the panel element.
      */
-    function Panel({ t, status, onClose }) {
+    function Panel({ t, status, onClose, localeId }) {
       const panelRef = React.useRef(null);
 
       React.useEffect(() => {
@@ -271,7 +273,7 @@ window.__ModuleLoader__.load({
             t(offPeak ? 'panel.untilPeak' : 'panel.untilOffPeak')),
           h('div', { key: 'untilValue', className: 'dpt_countValue' }, untilSwitch),
           h('div', { key: 'meta', className: 'dpt_meta' },
-            `${t('panel.switchAt')} ${localInstantText(status.nextSwitchAt)}`),
+            `${t('panel.switchAt')} ${localInstantText(status.nextSwitchAt, localeId)}`),
           h('div', { key: 'rule', className: 'dpt_rule' }, [
             h('div', { key: 'peak' }, t('panel.rulePeak')),
             h('div', { key: 'rest' }, t('panel.ruleRest')),
@@ -307,14 +309,16 @@ window.__ModuleLoader__.load({
 
     /**
      * Sidebar footer entry: a badge with the live pricing period and a countdown.
-     * @param props - slot props: `wide` from the sidebar, plus the `t` seat.
+     * @param props - slot props: `wide` from the sidebar, the `t` seat, and the
+     *   `useActiveLocale` selector hook.
      * @returns the badge row and, while open, the detail panel.
      */
-    function PriceTip({ wide, t }) {
+    function PriceTip({ wide, t, useActiveLocale }) {
       const now = useNow();
       const [open, setOpen] = React.useState(false);
       const close = React.useCallback(() => setOpen(false), []);
       const status = React.useMemo(() => statusAt(now), [now]);
+      const activeLocale = useActiveLocale((id) => id);
       const offPeak = status.period === 'off-peak';
       const stateLabel = t(offPeak ? 'state.offPeak' : 'state.peak');
       const nextLabel = t(offPeak ? 'state.peak' : 'state.offPeak');
@@ -352,7 +356,7 @@ window.__ModuleLoader__.load({
             roomy ? h('span', { key: 'count', className: 'dpt_count' }, countdown) : null,
           ]),
         ]),
-        open ? h(Panel, { key: 'panel', t, status, onClose: close }) : null,
+        open ? h(Panel, { key: 'panel', t, status, localeId: activeLocale, onClose: close }) : null,
       ]);
     }
 
@@ -366,11 +370,19 @@ window.__ModuleLoader__.load({
      */
     function apply(ctx) {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'price-tip: dictionaries');
+      // Stable observable source (created once, so the renderer's hook cache keeps
+      // one identity): the active Harness locale, consumed by the component as the
+      // `useActiveLocale` selector hook so the switch time follows the UI language.
+      const activeLocale = {
+        getSnapshot: () => ctx.locale.getSnapshot().active,
+        subscribe: (listener) => ctx.locale.subscribe(listener),
+      };
       ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
         name: 'sidebar.footer.action',
         id: 'price-tip',
         order: 20,
         locale: NS,
+        inject: () => ({ hooks: { activeLocale } }),
       }, PriceTip));
     }
 

@@ -24,6 +24,10 @@
   因此明暗主题与折叠（rail）模式都能自然融入。不 `require` 任何 Harness 客户端包。
 - **文案全部走 locale 命名空间**（`ctx.locale.register('price-tip', { zh, en })`），组件通过槽位的
   `locale: NS` 拿到 `t`，中文/英文键集完全一致（测试强制校验）。
+- **切换时刻跟随界面语言，而不是浏览器区域设置**：注册时通过 `inject` 的 `hooks.activeLocale`
+  暴露 `ctx.locale` 的活动语言（渲染器把 `hooks.<name>` 绑定成 `use<Name>` 选择器 Hook），
+  组件再用 `Intl.DateTimeFormat(语言, …)` 格式化。所以中文界面显示 `10月12日 09:00`、
+  英文界面显示 `Oct 12, 09:00 AM`——不会出现中文界面里冒出 `09:00 AM` 的混搭。
 - **槽位**：`sidebar.footer.action`（`list`、`scope: root`，Host 渲染时传 `wide`）。用
   `ctx.slots.inject(...)` 注册，父级声明消失时自动卸载；`setTimeout` 链与 `useEffect`、
   `<style>` 元素都随组件卸载清理。

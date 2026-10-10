@@ -75,6 +75,12 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
   const injections = [];
   const registrations = [];
   const dictionaries = [];
+  const localeListeners = new Set();
+  let activeLocale = 'zh';
+  const publishLocale = (id) => {
+    activeLocale = id;
+    for (const listener of [...localeListeners]) listener();
+  };
   const ctx = {
     effect(callback, label) {
       effects.push({ callback, label });
@@ -84,6 +90,11 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
       register(namespace, dict) {
         dictionaries.push({ namespace, dict });
         return () => {};
+      },
+      getSnapshot: () => ({ active: activeLocale }),
+      subscribe(listener) {
+        localeListeners.add(listener);
+        return () => localeListeners.delete(listener);
       },
     },
     slots: {
@@ -116,11 +127,38 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
     assert.notEqual(value.trim(), '', `${key} must not be empty`);
   }
 
-  assert.deepEqual(registrations.map((entry) => entry.options), [
-    { name: 'sidebar.footer.action', id: 'price-tip', order: 20, locale: 'price-tip' },
-  ]);
-  assert.equal(typeof registrations[0].component, 'function');
-  assert.equal(registrations[0].component.name, 'PriceTip');
+  assert.equal(registrations.length, 1);
+  const registration = registrations[0];
+  const { inject, ...stableOptions } = registration.options;
+  assert.deepEqual(stableOptions, {
+    name: 'sidebar.footer.action',
+    id: 'price-tip',
+    order: 20,
+    locale: 'price-tip',
+  });
+  assert.equal(typeof registration.component, 'function');
+  assert.equal(registration.component.name, 'PriceTip');
+
+  // The switch time follows the Harness locale, so the component needs the active
+  // locale as an observable hook source wired to the locale service: the renderer
+  // turns `hooks.activeLocale` into the `useActiveLocale` selector prop.
+  assert.equal(typeof inject, 'function');
+  const face = inject();
+  assert.deepEqual(Object.keys(face), ['hooks']);
+  const source = face.hooks.activeLocale;
+  assert.equal(typeof source.getSnapshot, 'function');
+  assert.equal(typeof source.subscribe, 'function');
+  assert.equal(source.getSnapshot(), 'zh');
+  const notifications = [];
+  const unsubscribe = source.subscribe(() => notifications.push(activeLocale));
+  publishLocale('en');
+  assert.deepEqual(notifications, ['en'], 'the source must forward locale changes');
+  assert.equal(source.getSnapshot(), 'en');
+  unsubscribe();
+  publishLocale('zh');
+  assert.deepEqual(notifications, ['en'], 'unsubscribing must stop notifications');
+  assert.equal(source.getSnapshot(), 'zh');
+  assert.match(bundleSource, /useActiveLocale\(/, 'the component must read the locale through the hook');
 });
 
 test('the visible copy is translated through the locale namespace', () => {
