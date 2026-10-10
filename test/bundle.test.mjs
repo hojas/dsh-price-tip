@@ -262,6 +262,29 @@ test('every document linked from the README exists', () => {
   }
 });
 
+test('the documents stay well-formed', () => {
+  const documents = ['README.md', 'docs/pricing-rule.md', 'docs/development.md', 'docs/verification.md'];
+  for (const file of documents) {
+    const text = readFileSync(path.join(ROOT, file), 'utf8');
+    assert.match(text, /^# /m, `${file} needs a top-level heading`);
+    assert.equal(
+      (text.match(/^```/gm) ?? []).length % 2,
+      0,
+      `${file} has an unbalanced code fence`,
+    );
+    let columns = null;
+    text.split('\n').forEach((line, index) => {
+      if (!line.trim().startsWith('|')) {
+        columns = null;
+        return;
+      }
+      const cells = line.trim().replace(/^\||\|$/g, '').split('|').length;
+      if (columns === null) columns = cells;
+      else assert.equal(cells, columns, `${file}:${index + 1} has ${cells} table cells, expected ${columns}`);
+    });
+  }
+});
+
 test('the host half is a valid plugin module', async () => {
   const host = await import('../index.js');
   assert.equal(typeof host.apply, 'function');
