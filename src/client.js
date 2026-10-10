@@ -14,8 +14,18 @@ window.__ModuleLoader__.load({
 
     // @@INLINE:policy@@
 
+    // @@INLINE:balance@@
+
     /** Locale namespace owned by this plugin. */
     const NS = 'price-tip';
+
+    /**
+     * Client build version reported to the Platform account endpoints. The Host
+     * derives the `x-client-version` header from it; `scripts/build-client.mjs`
+     * inlines this package's own version, which is the only build identity a
+     * standalone bundle can honestly claim.
+     */
+    const CLIENT_VERSION = '@@CLIENT_VERSION@@';
 
     /** Simplified Chinese copy (key-set source of truth). */
     const zh = {
@@ -33,6 +43,17 @@ window.__ModuleLoader__.load({
       'panel.effective': '生效',
       'panel.verified': '核对',
       'panel.source': '官方价格页',
+      'balance.title': '账户余额',
+      'balance.toppedUp': '充值余额',
+      'balance.granted': '赠送余额',
+      'balance.loading': '读取中…',
+      'balance.signedOut': '登录后查看余额',
+      'balance.failed': '暂时读不到余额',
+      'balance.empty': '暂无余额',
+      'balance.refresh': '刷新',
+      'balance.topUp': '去充值',
+      'balance.updated': '更新于 {time}',
+      'balance.stale': '刷新失败，显示上次结果',
       'cheer.offPeak': '站起来蹬',
       'cheer.offPeakNote': '便宜时段，尽管使劲用',
       'cheer.peak': '心疼着蹬',
@@ -64,6 +85,17 @@ window.__ModuleLoader__.load({
       'panel.effective': 'Effective',
       'panel.verified': 'Verified',
       'panel.source': 'Official price page',
+      'balance.title': 'Account balance',
+      'balance.toppedUp': 'Topped-up balance',
+      'balance.granted': 'Granted balance',
+      'balance.loading': 'Loading…',
+      'balance.signedOut': 'Sign in to view your balance',
+      'balance.failed': 'Balance temporarily unavailable',
+      'balance.empty': 'No balance',
+      'balance.refresh': 'Refresh',
+      'balance.topUp': 'Top up',
+      'balance.updated': 'Updated {time}',
+      'balance.stale': 'Refresh failed; showing the last reading',
       'cheer.offPeak': 'Stand up and pedal',
       'cheer.offPeakNote': 'cheap hours — go all out',
       'cheer.peak': 'Wince as you pedal',
@@ -120,6 +152,18 @@ window.__ModuleLoader__.load({
       '.dpt_cheerOff .dpt_cheerPhrase{color:var(--dsw-alias-state-success-primary)}',
       '.dpt_cheerPeak .dpt_cheerPhrase{color:var(--dsw-alias-state-warn-primary)}',
       '.dpt_rule{margin-top:10px;padding-top:10px;border-top:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}',
+      '.dpt_balance{margin-top:10px;padding-top:10px;border-top:.5px solid var(--dsw-alias-border-l1)}',
+      '.dpt_sectionHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}',
+      '.dpt_sectionTitle{color:var(--dsw-alias-label-tertiary);font-size:12px}',
+      '.dpt_sectionActions{display:flex;align-items:baseline;gap:10px}',
+      '.dpt_action{color:var(--dsw-alias-link);background:0 0;border:none;padding:0;font-family:inherit;font-size:12px;line-height:16px;cursor:pointer;text-decoration:none}',
+      '.dpt_action:hover:not(:disabled){text-decoration:underline}',
+      '.dpt_action:disabled{color:var(--dsw-alias-label-caption);cursor:default}',
+      '.dpt_balanceRow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:6px}',
+      '.dpt_balanceLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:16px}',
+      '.dpt_balanceValue{font-size:14px;font-weight:500;line-height:18px;font-variant-numeric:tabular-nums}',
+      '.dpt_balanceState{margin-top:6px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px}',
+      '.dpt_balanceNote{margin-top:4px;color:var(--dsw-alias-label-caption);font-size:11px;line-height:16px}',
       '.dpt_note{margin-top:6px;color:var(--dsw-alias-label-caption);font-size:11px;line-height:16px}',
       '.dpt_tableTitle{margin-top:10px;color:var(--dsw-alias-label-tertiary);font-size:12px}',
       '.dpt_table{width:100%;border-collapse:collapse;margin-top:4px;font-variant-numeric:tabular-nums}',
@@ -195,6 +239,36 @@ window.__ModuleLoader__.load({
         : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
     }
 
+    /**
+     * Read the signed-in account's balance through the optional account Remote
+     * namespace. The Host projects only wallet currency/balance strings, so this
+     * never sees a token.
+     * @param account - the `remote.account` namespace service.
+     * @param localeId - active Harness locale id.
+     * @returns a store outcome: `ready`, `signed-out`, or `failed`.
+     */
+    async function loadBalance(account, localeId) {
+      const identity = {
+        version: CLIENT_VERSION,
+        locale: localeId,
+        timezoneOffsetSeconds: -new Date().getTimezoneOffset() * 60,
+      };
+      const state = await account.getState();
+      if (state === null || typeof state !== 'object' || state.ok !== true || state.value === null) {
+        return { phase: 'failed' };
+      }
+      const links = state.value.links ?? null;
+      if (state.value.status !== 'credential-stored') return { phase: 'signed-out', links };
+      const result = await account.getBalance(identity);
+      if (result === null || typeof result !== 'object' || result.ok !== true) return { phase: 'failed' };
+      const balance = result.value;
+      // A null balance means the grant is absent or changed; the Provider also
+      // clears an unauthorized credential and emits its own signed-out notice.
+      if (balance === null) return { phase: 'signed-out', links };
+      if (balance.status !== 'ready') return { phase: 'failed' };
+      return { phase: 'ready', wallets: balance.value, bonusWallets: balance.bonusWallets, links };
+    }
+
     /** Crescent-moon glyph: off-peak. @param props - size in pixels. @returns the icon element. */
     function IconMoon({ size }) {
       return h('svg', {
@@ -220,12 +294,82 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * Account-balance block for the panel. It reads the signed-in DeepSeek
+     * account through the optional account namespace, so a profile without one
+     * (or an API-key-only setup that never signed in) shows either nothing or a
+     * single muted line instead of a broken section.
+     * @param props - translate seat, balance snapshot, active locale, and a refresh callback.
+     * @returns the block element, or null when no account service is mounted.
+     */
+    function BalanceBlock({ t, balance, localeId, onRefresh }) {
+      if (balance.phase === 'unavailable') return null;
+      const ready = balance.phase === 'ready';
+      const rows = balance.wallets.map((wallet, index) => ({
+        key: `toppedUp-${index}`,
+        label: t('balance.toppedUp'),
+        value: formatBalance(wallet.balance, currencySymbol(wallet.currency)),
+      }));
+      // Granted wallets are noise at zero, which is their usual state; the
+      // account settings page hides them on the same condition.
+      balance.bonusWallets.forEach((wallet, index) => {
+        if (!isPositiveDecimal(wallet.balance)) return;
+        rows.push({
+          key: `granted-${index}`,
+          label: t('balance.granted'),
+          value: formatBalance(wallet.balance, currencySymbol(wallet.currency)),
+        });
+      });
+
+      let stateText = null;
+      if (balance.phase === 'loading' || balance.phase === 'idle') stateText = t('balance.loading');
+      else if (balance.phase === 'signed-out') stateText = t('balance.signedOut');
+      else if (balance.phase === 'failed') stateText = t('balance.failed');
+      else if (rows.length === 0) stateText = t('balance.empty');
+
+      return h('div', { className: 'dpt_balance' }, [
+        h('div', { key: 'head', className: 'dpt_sectionHead' }, [
+          h('span', { key: 'title', className: 'dpt_sectionTitle' }, t('balance.title')),
+          h('span', { key: 'actions', className: 'dpt_sectionActions' }, [
+            ready && balance.links !== null && balance.links.topUpUrl
+              ? h('a', {
+                key: 'topUp',
+                className: 'dpt_action',
+                href: balance.links.topUpUrl,
+                target: '_blank',
+                rel: 'noreferrer noopener',
+              }, t('balance.topUp'))
+              : null,
+            h('button', {
+              key: 'refresh',
+              type: 'button',
+              className: 'dpt_action',
+              onClick: onRefresh,
+              disabled: balance.busy,
+            }, t('balance.refresh')),
+          ]),
+        ]),
+        ...rows.map((row) => h('div', { key: row.key, className: 'dpt_balanceRow' }, [
+          h('span', { key: 'label', className: 'dpt_balanceLabel' }, row.label),
+          h('span', { key: 'value', className: 'dpt_balanceValue' }, row.value),
+        ])),
+        stateText === null ? null : h('div', { key: 'state', className: 'dpt_balanceState' }, stateText),
+        ready
+          ? h('div', { key: 'note', className: 'dpt_balanceNote' },
+            balance.stale ? t('balance.stale') : fill(t('balance.updated'), { time: localInstantText(balance.fetchedAt, localeId) }))
+          : null,
+      ]);
+    }
+
+    /**
      * Detail panel: current state, live countdown, the rule, and the price table.
      * @param props - translate seat, current status, active locale, and close callback.
      * @returns the panel element.
      */
-    function Panel({ t, status, onClose, localeId }) {
+    function Panel({ t, status, onClose, localeId, balance, onRefreshBalance }) {
       const panelRef = React.useRef(null);
+
+      // Read the balance when the panel opens; the store dedupes an in-flight read.
+      React.useEffect(() => { onRefreshBalance(); }, [onRefreshBalance]);
 
       React.useEffect(() => {
         const onKeyDown = (event) => {
@@ -297,6 +441,10 @@ window.__ModuleLoader__.load({
             h('span', { key: 'note', className: 'dpt_cheerNote' },
               t(offPeak ? 'cheer.offPeakNote' : 'cheer.peakNote')),
           ]),
+          // Signed-in account balance, when this profile has an account service.
+          h(BalanceBlock, {
+            key: 'balance', t, balance, localeId, onRefresh: onRefreshBalance,
+          }),
           h('div', { key: 'tableTitle', className: 'dpt_tableTitle' }, t('panel.table')),
           h('table', { key: 'table', className: 'dpt_table' }, [
             h('thead', { key: 'head' }, h('tr', null, [
@@ -328,16 +476,17 @@ window.__ModuleLoader__.load({
 
     /**
      * Sidebar footer entry: a badge with the live pricing period and a countdown.
-     * @param props - slot props: `wide` from the sidebar, the `t` seat, and the
-     *   `useActiveLocale` selector hook.
+     * @param props - slot props: `wide` from the sidebar, the `t` seat, the
+     *   `useActiveLocale` / `useBalance` selector hooks, and the refresh action.
      * @returns the badge row and, while open, the detail panel.
      */
-    function PriceTip({ wide, t, useActiveLocale }) {
+    function PriceTip({ wide, t, useActiveLocale, useBalance, refreshBalance }) {
       const now = useNow();
       const [open, setOpen] = React.useState(false);
       const close = React.useCallback(() => setOpen(false), []);
       const status = React.useMemo(() => statusAt(now), [now]);
       const activeLocale = useActiveLocale((id) => id);
+      const balance = useBalance((snapshot) => snapshot);
       const offPeak = status.period === 'off-peak';
       const stateLabel = t(offPeak ? 'state.offPeak' : 'state.peak');
       const nextLabel = t(offPeak ? 'state.peak' : 'state.offPeak');
@@ -381,7 +530,9 @@ window.__ModuleLoader__.load({
             roomy ? h('span', { key: 'count', className: 'dpt_count' }, countdown) : null,
           ]),
         ]),
-        open ? h(Panel, { key: 'panel', t, status, localeId: activeLocale, onClose: close }) : null,
+        open ? h(Panel, {
+          key: 'panel', t, status, localeId: activeLocale, balance, onRefreshBalance: refreshBalance, onClose: close,
+        }) : null,
       ]);
     }
 
@@ -402,12 +553,31 @@ window.__ModuleLoader__.load({
         getSnapshot: () => ctx.locale.getSnapshot().active,
         subscribe: (listener) => ctx.locale.subscribe(listener),
       };
+      // Balance is an optional addition: a profile without the account controller
+      // keeps the badge and simply never renders the block. `ctx.inject` is the
+      // park-until-available form, so nothing here is a hard dependency.
+      const balance = createBalanceStore();
+      ctx.effect(() => () => balance.dispose(), 'price-tip: balance lifetime');
+      ctx.inject(['remote', 'remote.account'], (accountCtx) => {
+        const account = accountCtx.remote.account;
+        balance.attach(() => loadBalance(account, ctx.locale.getSnapshot().active));
+        // A sign-in, sign-out, or credential swap arrives as a record update; only
+        // a store the user has already opened re-reads, so nothing polls in the
+        // background. Disposal lives with this optional fiber.
+        accountCtx.effect(
+          () => accountCtx.remote.$on('credentials/record-updated', () => { balance.refreshIfLoaded(); }),
+          'price-tip: balance refresh',
+        );
+      });
       ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
         name: 'sidebar.footer.action',
         id: 'price-tip',
         order: 20,
         locale: NS,
-        inject: () => ({ hooks: { activeLocale } }),
+        inject: () => ({
+          hooks: { activeLocale, balance },
+          refreshBalance: () => balance.refresh(),
+        }),
       }, PriceTip));
     }
 

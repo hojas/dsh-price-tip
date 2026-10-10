@@ -76,6 +76,7 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
   const registrations = [];
   const dictionaries = [];
   const localeListeners = new Set();
+  const optionalInjections = [];
   let activeLocale = 'zh';
   const publishLocale = (id) => {
     activeLocale = id;
@@ -84,6 +85,10 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
   const ctx = {
     effect(callback, label) {
       effects.push({ callback, label });
+      return () => {};
+    },
+    inject(services, callback) {
+      optionalInjections.push({ services, callback });
       return () => {};
     },
     locale: {
@@ -111,10 +116,19 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
 
   plugin.apply(ctx);
 
-  assert.deepEqual(effects.map((effect) => effect.label), ['price-tip: dictionaries']);
+  assert.deepEqual(effects.map((effect) => effect.label), [
+    'price-tip: dictionaries',
+    'price-tip: balance lifetime',
+  ]);
   for (const effect of effects) effect.callback();
   assert.deepEqual(injections.map((injection) => injection.key), ['sidebar.footer.action']);
   for (const injection of injections) injection.callback();
+
+  // The account namespace is optional: it arrives through a parked injection
+  // rather than the plugin's required list, so profiles without it still load.
+  assert.deepEqual(plugin.inject, ['slots', 'locale']);
+  assert.equal(optionalInjections.length, 1);
+  assert.deepEqual(optionalInjections[0].services, ['remote', 'remote.account']);
 
   assert.equal(dictionaries.length, 1);
   assert.equal(dictionaries[0].namespace, 'price-tip');
@@ -144,7 +158,7 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
   // turns `hooks.activeLocale` into the `useActiveLocale` selector prop.
   assert.equal(typeof inject, 'function');
   const face = inject();
-  assert.deepEqual(Object.keys(face), ['hooks']);
+  assert.deepEqual(Object.keys(face), ['hooks', 'refreshBalance']);
   const source = face.hooks.activeLocale;
   assert.equal(typeof source.getSnapshot, 'function');
   assert.equal(typeof source.subscribe, 'function');
@@ -159,6 +173,83 @@ test('apply() owns its dictionaries and one sidebar footer entry', () => {
   assert.deepEqual(notifications, ['en'], 'unsubscribing must stop notifications');
   assert.equal(source.getSnapshot(), 'zh');
   assert.match(bundleSource, /useActiveLocale\(/, 'the component must read the locale through the hook');
+
+  // The balance is an observable source too, and its own refresh action is what
+  // the panel calls when it opens.
+  const balance = face.hooks.balance;
+  assert.equal(typeof balance.getSnapshot, 'function');
+  assert.equal(typeof balance.subscribe, 'function');
+  assert.equal(balance.getSnapshot().phase, 'unavailable', 'no account service has been injected yet');
+  assert.equal(typeof face.refreshBalance, 'function');
+  assert.match(bundleSource, /useBalance\(/, 'the component must read the balance through the hook');
+});
+
+test('the optional account injection reads the balance into the hook source', async () => {
+  const { plugin } = materialize();
+  const optionalInjections = [];
+  const registrations = [];
+  let subscription = null;
+  const account = {
+    calls: [],
+    async getState() {
+      this.calls.push('getState');
+      return { ok: true, value: { status: 'credential-stored', links: { topUpUrl: 'https://platform.deepseek.com/top_up' } } };
+    },
+    async getBalance(metadata) {
+      this.calls.push('getBalance');
+      this.metadata = metadata;
+      return {
+        ok: true,
+        value: {
+          status: 'ready',
+          value: [{ currency: 'CNY', balance: '110.00' }],
+          bonusWallets: [{ currency: 'USD', balance: '0' }],
+        },
+      };
+    },
+  };
+  const ctx = {
+    effect: (callback) => { callback(); return () => {}; },
+    inject(services, callback) { optionalInjections.push({ services, callback }); },
+    locale: { register: () => () => {}, getSnapshot: () => ({ active: 'zh' }) },
+    slots: {
+      inject: (_key, callback) => callback(),
+      register: (options, component) => { registrations.push({ options, component }); return () => {}; },
+    },
+  };
+  plugin.apply(ctx);
+  assert.equal(optionalInjections.length, 1);
+  assert.deepEqual(optionalInjections[0].services, ['remote', 'remote.account']);
+
+  const effects = [];
+  optionalInjections[0].callback({
+    remote: {
+      account,
+      $on(event, listener) { subscription = { event, listener }; return () => { subscription = null; }; },
+    },
+    effect(callback, label) { effects.push({ callback, label }); return () => {}; },
+  });
+  for (const effect of effects) effect.callback();
+  assert.deepEqual(effects.map((effect) => effect.label), ['price-tip: balance refresh']);
+  assert.equal(subscription.event, 'credentials/record-updated');
+  assert.equal(account.calls.length, 0, 'attaching must not read');
+
+  // The face the renderer binds is what the panel uses: the hook source plus the
+  // refresh action it calls on open.
+  const face = registrations[0].options.inject();
+  const seen = [];
+  face.hooks.balance.subscribe(() => seen.push(face.hooks.balance.getSnapshot().phase));
+  await face.refreshBalance();
+  assert.deepEqual(account.calls, ['getState', 'getBalance']);
+  assert.equal(account.metadata.version, manifest.version);
+  assert.equal(account.metadata.locale, 'zh');
+  assert.equal(typeof account.metadata.timezoneOffsetSeconds, 'number');
+  const snapshot = face.hooks.balance.getSnapshot();
+  assert.equal(snapshot.phase, 'ready');
+  assert.deepEqual(snapshot.wallets, [{ currency: 'CNY', balance: '110.00' }]);
+  assert.deepEqual(snapshot.bonusWallets, [{ currency: 'USD', balance: '0' }]);
+  assert.equal(snapshot.links.topUpUrl, 'https://platform.deepseek.com/top_up');
+  assert.deepEqual(seen, ['loading', 'ready']);
 });
 
 test('the visible copy is translated through the locale namespace', () => {
@@ -168,10 +259,10 @@ test('the visible copy is translated through the locale namespace', () => {
   const dictionaries = [];
   const ctx = {
     effect: (callback) => { callback(); return () => {}; },
+    inject: (services, callback) => {},
     locale: { register: (namespace, dict) => { dictionaries.push({ namespace, dict }); return () => {}; } },
     slots: { inject: () => {}, register: () => {} },
   };
-  ctx.slots.inject = () => {};
   plugin.apply(ctx);
   assert.equal(dictionaries.length, 1);
   const keys = new Set(Object.keys(dictionaries[0].dict.zh));

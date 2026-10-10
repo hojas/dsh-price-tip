@@ -1,9 +1,9 @@
 {
   "name": "dsh-price-tip",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "侧栏的 DeepSeek API 价格时段提醒：当前处于空闲时段还是高峰时段、距离切换还有多久，以及当前生效的价目表。",
+  "description": "侧栏的 DeepSeek API 价格时段提醒：当前处于空闲时段还是高峰时段、距离切换还有多久，当前生效的价目表，以及已登录账户的余额。",
   "icon": "./icon.svg",
   "exports": {
     ".": "./index.js",

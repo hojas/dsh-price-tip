@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Generate the served browser bundle `client.js` from `src/client.js` (template)
- * and `src/policy.js` (pricing rule).
+ * Generate the served browser bundle `client.js` from `src/client.js` (template),
+ * `src/policy.js` (pricing rule), and `src/balance.js` (account-balance helpers).
  *
  * The Host serves `client.js` verbatim, so the artifact is committed. This
  * script keeps it in lockstep with its sources:
- *   - the package name comes from `package.json`, so the module id can never
- *     drift from the manifest;
- *   - the pricing rule is inlined textually, so the browser and the tests run
+ *   - the package name and version come from `package.json`, so the module id
+ *     and the Platform client identity can never drift from the manifest;
+ *   - both rule modules are inlined textually, so the browser and the tests run
  *     the same code instead of two copies;
  *   - the result is parsed with `node:vm` before it is written.
  *
@@ -21,26 +21,32 @@ import vm from 'node:vm';
 
 /** Repository root (this file lives in `<root>/scripts`). */
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-/** Template with the `@@PACKAGE_NAME@@` and policy markers. */
+/** Template with the `@@PACKAGE_NAME@@`, `@@CLIENT_VERSION@@`, and inline markers. */
 export const TEMPLATE_PATH = path.join(ROOT, 'src', 'client.js');
 /** Pricing-rule module inlined into the bundle. */
 export const POLICY_PATH = path.join(ROOT, 'src', 'policy.js');
+/** Account-balance module inlined into the bundle. */
+export const BALANCE_PATH = path.join(ROOT, 'src', 'balance.js');
 /** Generated bundle served to the browser. */
 export const BUNDLE_PATH = path.join(ROOT, 'client.js');
-/** Marker replaced by the policy source. */
-const MARKER = '// @@INLINE:policy@@';
+/** Template marker → module it is replaced by, in source order. */
+const INLINE_MARKERS = new Map([
+  ['// @@INLINE:policy@@', POLICY_PATH],
+  ['// @@INLINE:balance@@', BALANCE_PATH],
+]);
 
 /**
  * Strip ES module syntax from a source file that only declares things.
- * @param source - contents of `src/policy.js`.
+ * @param source - contents of an inlined module.
+ * @param label - module path for diagnostics.
  * @returns the same source as a plain script body.
  */
-export function inlinePolicy(source) {
+export function inlineModule(source, label) {
   if (/^\s*import\s/m.test(source)) {
-    throw new Error('src/policy.js must not import anything: the bundle inlines it as a plain script');
+    throw new Error(`${label} must not import anything: the bundle inlines it as a plain script`);
   }
   if (/^\s*export\s+(default|\{|\*)/m.test(source)) {
-    throw new Error('src/policy.js may only use `export const` / `export function` declarations');
+    throw new Error(`${label} may only use \`export const\` / \`export function\` declarations`);
   }
   return source.replace(/^export (?=(?:const|let|var|function|class)\b)/gm, '');
 }
@@ -54,25 +60,32 @@ export function renderClient() {
   if (typeof manifest.name !== 'string' || manifest.name === '') {
     throw new Error('package.json needs a name');
   }
-  const template = readFileSync(TEMPLATE_PATH, 'utf8');
-  const markers = template.split(MARKER).length - 1;
-  if (markers !== 1) {
-    throw new Error(`src/client.js must contain exactly one "${MARKER}" marker, found ${markers}`);
+  if (typeof manifest.version !== 'string' || manifest.version === '') {
+    throw new Error('package.json needs a version');
   }
-  const policy = inlinePolicy(readFileSync(POLICY_PATH, 'utf8'));
+  const template = readFileSync(TEMPLATE_PATH, 'utf8');
+  let rendered = template;
+  for (const [marker, modulePath] of INLINE_MARKERS) {
+    const markers = template.split(marker).length - 1;
+    if (markers !== 1) {
+      throw new Error(`src/client.js must contain exactly one "${marker}" marker, found ${markers}`);
+    }
+    rendered = rendered.replace(marker, () => inlineModule(readFileSync(modulePath, 'utf8'), path.relative(ROOT, modulePath)));
+  }
+  rendered = rendered
+    .replaceAll('@@PACKAGE_NAME@@', manifest.name)
+    .replaceAll('@@CLIENT_VERSION@@', manifest.version);
   const banner = [
     '// GENERATED FILE — do not edit.',
-    '// Sources: src/client.js (template) + src/policy.js (pricing rule).',
+    '// Sources: src/client.js (template) + src/policy.js (pricing rule) + src/balance.js (account balance).',
     '// Rebuild with: node scripts/build-client.mjs',
     '',
   ].join('\n');
-  const rendered = template
-    .replace(MARKER, () => policy.trimEnd())
-    .replaceAll('@@PACKAGE_NAME@@', manifest.name);
   const bundle = banner + rendered;
   // Fail the build on a syntax error instead of shipping a broken bundle.
   new vm.Script(bundle, { filename: 'client.js' });
-  if (bundle.includes('@@PACKAGE_NAME@@')) throw new Error('package-name placeholder was not substituted');
+  const leftover = bundle.match(/@@[A-Z_]+@@/);
+  if (leftover !== null) throw new Error(`template placeholder ${leftover[0]} was not substituted`);
   return bundle;
 }
 
@@ -100,7 +113,7 @@ export function bundleIsCurrent() {
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv.includes('--check')) {
     if (bundleIsCurrent()) {
-      console.log('client.js is up to date with src/client.js + src/policy.js');
+      console.log('client.js is up to date with src/client.js + src/policy.js + src/balance.js');
     } else {
       console.error('client.js is STALE — run: node scripts/build-client.mjs');
       process.exitCode = 1;
