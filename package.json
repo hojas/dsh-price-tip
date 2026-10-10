@@ -17,7 +17,8 @@
     "cordis.patch.yml",
     "icon.svg",
     "locale/*.json",
-    "README.md"
+    "README.md",
+    "docs"
   ],
   "scripts": {
     "build": "node scripts/build-client.mjs",

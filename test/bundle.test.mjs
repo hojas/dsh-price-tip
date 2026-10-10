@@ -184,6 +184,46 @@ test('the manifest matches the patch, the client entry, and the display metadata
   assert.match(readFileSync(path.join(ROOT, 'icon.svg'), 'utf8'), /^<svg[\s>]/);
 });
 
+test('the files field ships every runtime artifact and document', () => {
+  // A tarball or GitHub install only receives what `files` matches, so a missing
+  // entry silently breaks the plugin for everyone who installs it.
+  const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // npm/pnpm `files` semantics: an exact path, a glob, or a bare directory whose
+  // whole subtree is included.
+  const matchesFilesGlob = (pattern, file) =>
+    file === pattern ||
+    file.startsWith(`${pattern}/`) ||
+    new RegExp(`^${pattern.split('*').map(escape).join('[^/]*')}$`).test(file);
+  const shipped = [
+    'index.js',
+    'client.js',
+    'cordis.patch.yml',
+    'icon.svg',
+    'locale/zh.json',
+    'locale/en.json',
+    'README.md',
+    'docs/pricing-rule.md',
+    'docs/development.md',
+    'docs/verification.md',
+  ];
+  for (const file of shipped) {
+    assert.ok(
+      manifest.files.some((pattern) => matchesFilesGlob(pattern, file)),
+      `${file} is not matched by the files field and would be missing from an install`,
+    );
+    statSync(path.join(ROOT, file));
+  }
+});
+
+test('every document linked from the README exists', () => {
+  const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const links = [...readme.matchAll(/\]\((?!https?:)([^)#]+)\)/g)].map((match) => match[1]);
+  assert.ok(links.length >= 3, 'the README should link to the topic documents');
+  for (const target of links) {
+    statSync(path.join(ROOT, target));
+  }
+});
+
 test('the host half is a valid plugin module', async () => {
   const host = await import('../index.js');
   assert.equal(typeof host.apply, 'function');
