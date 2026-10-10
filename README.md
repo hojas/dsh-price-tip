@@ -48,37 +48,9 @@ DeepSeek API 当前处于**空闲时段**还是**高峰时段**、距离下次�
 > ⚠️ 2025 年那套「北京时间 00:30–08:30 错峰优惠」已于 2025-09-05 16:00 UTC 取消，**不是**现行规则；
 > `deepseek-chat` / `deepseek-reasoner` 也已在 2026-07-24 15:59 UTC 下线。本插件不含这两个模型。
 
-## 安装
+## 如何安装
 
-插件是一个零依赖的本地 bundle 目录。下面两条路径二选一；想装到**别人的**机器上，见
-[其他人如何安装](#其他人如何安装)。
-
-**A. 从界面安装（推荐，走 Harness 自带的插件管理器）**
-
-1. 打开 **设置 → 插件**（Settings → Plugins）。
-2. 在安装输入框里粘贴**这个插件目录的绝对路径**（下文用 `/path/to/dsh-price-tip` 代指，
-   换成你自己克隆或解压出来的位置，必须是绝对路径）：
-   `/path/to/dsh-price-tip`
-3. 安装后刷新页面（新客户端 bundle 由 HMR 载入；刷新可确保生效）。
-
-**B. 命令行安装（仅适用于非 `desktop` 配置档）**
-
-```sh
-dsh plugin --profile <profile> add /path/to/dsh-price-tip
-```
-
-`desktop` 配置档由 Electron 应用独占管理，命令行会拒绝写入：
-
-```
-error: profile "desktop" is managed exclusively by the Electron application
-```
-
-安装动作会把该目录装成依赖，并**自动把 `dsh-price-tip` 加入该配置档的 `dsh.profile.bundles`**
-（`pnpm` 安装后由 `reconcile` 选择 bundle），随后 bundle 的 `cordis.patch.yml` 插入 `price-tip` 行。
-
-## 其他人如何安装
-
-插件零依赖、无生命周期脚本，且**已把浏览器侧的 `client.js` 提交进仓库**，所以别人安装时不需要任何构建步骤。
+插件零依赖、无生命周期脚本，且**已把浏览器侧的 `client.js` 提交进仓库**，所以安装时不需要任何构建步骤。
 （下面三条路径都在 DSH `0.2.0-rc.2` 上实测过。）
 
 ### 1. 从 GitHub 安装（推荐）
@@ -96,7 +68,7 @@ dsh plugin --profile <profile> add https://github.com/hojas/dsh-price-tip
 ```
 
 pnpm 会从 `codeload.github.com` 拉取 `main` 的 tarball，装好后自动写入依赖并把 `dsh-price-tip`
-选入该配置档的 `dsh.profile.bundles`。仓库当前**匿名 HTTPS 可读**，对方无需 GitHub 账号。
+选入该配置档的 `dsh.profile.bundles`。仓库当前**匿名 HTTPS 可读**，无需 GitHub 账号。
 
 ### 2. 从 tarball 安装（离线 / 内网 / 需要固定版本）
 
@@ -104,7 +76,7 @@ pnpm 会从 `codeload.github.com` 拉取 `main` 的 tarball，装好后自动写
 pnpm pack                      # 生成 dsh-price-tip-1.0.0.tgz（约 16 KB，含全部运行时文件）
 ```
 
-把 `.tgz` 给对方，粘贴其绝对路径安装，或：
+把 `.tgz`（自己打的或别人给的）放到任意位置，在安装框里粘贴其绝对路径，或：
 
 ```sh
 dsh plugin --profile <profile> add /path/to/dsh-price-tip-1.0.0.tgz
@@ -116,7 +88,7 @@ dsh plugin --profile <profile> add /path/to/dsh-price-tip-1.0.0.tgz
 git clone https://github.com/hojas/dsh-price-tip
 ```
 
-然后安装框里粘贴该目录路径。这样装的是 `link:`（软链到仓库），改完
+然后在安装框里粘贴该目录的绝对路径（如 `/path/to/dsh-price-tip`）。这样装的是 `link:`（软链到仓库），改完
 `node scripts/build-client.mjs` 刷新页面即可生效，不必重装。
 
 ### 分发须知
@@ -221,7 +193,7 @@ schedule: {
 
 - **像素级渲染**。组件未在真实浏览器里截图核对，浅色/深色主题下的观感、弹层定位、
   折叠（rail）态横向对齐均只经过代码审阅与结构测试。若与预期不符，请告知具体现象。
-- 安装进**正在运行的 desktop 配置档**后的实际显示（见「安装」一节，需要你选择装法）。
+- 安装进**正在运行的 desktop 配置档**后的实际显示（装法见「如何安装」一节）。
 
 ## 后续可做
 
