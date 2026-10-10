@@ -92,8 +92,12 @@ window.__ModuleLoader__.load({
       '.dpt_peak .dpt_icon{color:var(--dsw-alias-state-warn-primary)}',
       '.dpt_label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.dpt_count{margin-left:auto;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;font-variant-numeric:tabular-nums;flex:none}',
-      '.dpt_panel{position:fixed;left:12px;bottom:96px;z-index:40;isolation:isolate;width:392px;max-width:calc(100vw - 24px);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border-radius:12px;box-shadow:var(--dsw-elevation-prominent);overflow:hidden}',
-      '.dpt_panel::before{z-index:-1;border-radius:inherit;background:var(--dsw-specific-menu);backdrop-filter:var(--dsw-menu-backdrop-filter);content:"";pointer-events:none;position:absolute;inset:0}',
+      '.dpt_panel{position:fixed;left:12px;bottom:96px;z-index:40;isolation:isolate;width:392px;max-width:calc(100vw - 24px);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);border-radius:12px;box-shadow:var(--dsw-elevation-prominent);overflow:hidden}',
+      // The host menu colour is 94% opaque, so a translucent panel lets the page behind
+      // it bleed through (readable under contrast enhancement). Layering it over the
+      // opaque base keeps the menu tint and makes the surface solid; the backdrop blur
+      // would then be a no-op, so it is dropped.
+      '.dpt_panel::before{z-index:-1;border-radius:inherit;background:var(--dsw-specific-menu);content:"";pointer-events:none;position:absolute;inset:0}',
       '.dpt_body{max-height:min(64vh,560px);overflow-y:auto;padding:12px 14px 10px;font-size:13px;line-height:20px}',
       '.dpt_head{display:flex;align-items:center;justify-content:space-between;gap:8px}',
       '.dpt_title{font-size:14px;font-weight:500;line-height:20px}',

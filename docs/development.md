@@ -22,6 +22,10 @@
 - **样式只用主题 token**（`--dsw-alias-*`），几何尺寸照抄 Host 侧栏底部行
   （`height:42px`、`border-radius:var(--dsw-radius-md)`、`--dsw-alias-interactive-bg-hover`），
   因此明暗主题与折叠（rail）模式都能自然融入。不 `require` 任何 Harness 客户端包。
+- **弹层是不透明的**：宿主菜单色 `--dsw-specific-menu` 本身只有 94% 不透明，直接用会让面板背后的
+  正文隐隐透出（长文之上更明显，且能被对比度拉伸还原）。因此在面板自身垫一层
+  `var(--dsw-alias-bg-base)`，再把菜单色叠在其上：色调与宿主弹层一致，但表面是实的，
+  随之失效的 `backdrop-filter` 一并去掉。
 - **文案全部走 locale 命名空间**（`ctx.locale.register('price-tip', { zh, en })`），组件通过槽位的
   `locale: NS` 拿到 `t`，中文/英文键集完全一致（测试强制校验）。
 - **切换时刻跟随界面语言，而不是浏览器区域设置**：注册时通过 `inject` 的 `hooks.activeLocale`
