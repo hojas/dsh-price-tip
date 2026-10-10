@@ -53,5 +53,5 @@
 
 - 客户端断言只做到「模块包装 + 插件生命周期 + 清单」一层：不模拟 React、不构造 DOM、不做截图，
   不用假渲染替代真实验证。
-- 规则与价格读自官方价格页及其存档、官方发布说明；节假日逐条用 `date` 复核星期。
-  来源与置信度见 [pricing-rule.md](pricing-rule.md)。
+- 规则与价格读自 [官方价格页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing)及其存档、官方发布说明；
+  节假日逐条用 `date` 复核星期。官方文档未明确处的假设见 [development.md](development.md)。

@@ -19,8 +19,8 @@ DSH（DeepSeek Harness）插件：在 Web 界面**侧栏底部**常驻一个价�
 | 空闲 | 其余全部时间，含周末与法定节假日全天 | 高峰价的 50% |
 
 > ⚠️ 2025 年那套「00:30–08:30 错峰优惠」已于 2025-09-05 取消，`deepseek-chat` / `deepseek-reasoner`
-> 也已于 2026-07-24 下线——**都不是现行规则**。来源、价目表与历史沿革见
-> [docs/pricing-rule.md](docs/pricing-rule.md)。
+> 也已于 2026-07-24 下线——**都不是现行规则**。规则与价目表以
+> [DeepSeek 官方价格页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 为准（核对于 2026-10-10）。
 
 ## 特性
 
@@ -60,6 +60,5 @@ dsh plugin --profile <profile> add https://github.com/hojas/dsh-price-tip
 
 | 文档 | 内容 |
 | --- | --- |
-| [docs/pricing-rule.md](docs/pricing-rule.md) | 规则与价目表、官方来源、历史沿革、边界假设、维护方式 |
-| [docs/development.md](docs/development.md) | 文件结构、自定义规则、设计取舍、构建与测试 |
+| [docs/development.md](docs/development.md) | 文件结构、自定义规则、规则来源与边界假设、设计取舍、构建与测试 |
 | [docs/verification.md](docs/verification.md) | 验证状态：实测项、截图、未验证项、验证方法 |

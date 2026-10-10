@@ -240,7 +240,6 @@ test('the files field ships every runtime artifact and document', () => {
     'locale/zh.json',
     'locale/en.json',
     'README.md',
-    'docs/pricing-rule.md',
     'docs/development.md',
     'docs/verification.md',
   ];
@@ -263,7 +262,7 @@ test('every document linked from the README exists', () => {
 });
 
 test('the documents stay well-formed', () => {
-  const documents = ['README.md', 'docs/pricing-rule.md', 'docs/development.md', 'docs/verification.md'];
+  const documents = ['README.md', 'docs/development.md', 'docs/verification.md'];
   for (const file of documents) {
     const text = readFileSync(path.join(ROOT, file), 'utf8');
     assert.match(text, /^# /m, `${file} needs a top-level heading`);
