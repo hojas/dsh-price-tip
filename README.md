@@ -10,7 +10,7 @@ DSH（DeepSeek Harness）插件：在 Web 界面**侧栏底部**常驻一个价�
 ![点击标记展开的面板](docs/screenshot-panel.png)
 
 *点击展开：当前时段与折扣、剩余时间与切换时刻（本机时区、跟随界面语言）、口号、价目表（加粗为当前价、划线为高峰价），
-以及底部的规则与来源。*
+以及底部的规则与来源。深色主题下的侧栏与面板见 [docs/verification.md](docs/verification.md)。*
 
 ## 它提醒什么
 
