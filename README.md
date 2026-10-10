@@ -50,19 +50,21 @@ DeepSeek API 当前处于**空闲时段**还是**高峰时段**、距离下次�
 
 ## 安装
 
-插件是一个零依赖的本地 bundle 目录，两种装法二选一。
+插件是一个零依赖的本地 bundle 目录。下面两条路径二选一；想装到**别人的**机器上，见
+[其他人如何安装](#其他人如何安装)。
 
 **A. 从界面安装（推荐，走 Harness 自带的插件管理器）**
 
 1. 打开 **设置 → 插件**（Settings → Plugins）。
-2. 在安装输入框里粘贴本地目录路径：
-   `/Users/chenyx/projects/dsh-price-tip`
+2. 在安装输入框里粘贴**这个插件目录的绝对路径**（下文用 `/path/to/dsh-price-tip` 代指，
+   换成你自己克隆或解压出来的位置，必须是绝对路径）：
+   `/path/to/dsh-price-tip`
 3. 安装后刷新页面（新客户端 bundle 由 HMR 载入；刷新可确保生效）。
 
 **B. 命令行安装（仅适用于非 `desktop` 配置档）**
 
 ```sh
-dsh plugin --profile <profile> add /Users/chenyx/projects/dsh-price-tip
+dsh plugin --profile <profile> add /path/to/dsh-price-tip
 ```
 
 `desktop` 配置档由 Electron 应用独占管理，命令行会拒绝写入：
