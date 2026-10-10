@@ -1,0 +1,5 @@
+# Bundle patch for the price-tip plugin: one insert over the profile root.
+# The client half renders the sidebar badge; the host half is intentionally inert.
+- insert:
+    - id: price-tip
+      name: 'dsh-price-tip'
