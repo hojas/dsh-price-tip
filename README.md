@@ -74,6 +74,62 @@ error: profile "desktop" is managed exclusively by the Electron application
 安装动作会把该目录装成依赖，并**自动把 `dsh-price-tip` 加入该配置档的 `dsh.profile.bundles`**
 （`pnpm` 安装后由 `reconcile` 选择 bundle），随后 bundle 的 `cordis.patch.yml` 插入 `price-tip` 行。
 
+## 其他人如何安装
+
+插件零依赖、无生命周期脚本，且**已把浏览器侧的 `client.js` 提交进仓库**，所以别人安装时不需要任何构建步骤。
+（下面三条路径都在 DSH `0.2.0-rc.2` 上实测过。）
+
+### 1. 从 GitHub 安装（推荐）
+
+**设置 → 插件** → 粘贴：
+
+```
+https://github.com/hojas/dsh-price-tip
+```
+
+命令行等价写法（仅限非 `desktop` 配置档）：
+
+```sh
+dsh plugin --profile <profile> add https://github.com/hojas/dsh-price-tip
+```
+
+pnpm 会从 `codeload.github.com` 拉取 `main` 的 tarball，装好后自动写入依赖并把 `dsh-price-tip`
+选入该配置档的 `dsh.profile.bundles`。仓库当前**匿名 HTTPS 可读**，对方无需 GitHub 账号。
+
+### 2. 从 tarball 安装（离线 / 内网 / 需要固定版本）
+
+```sh
+pnpm pack                      # 生成 dsh-price-tip-1.0.0.tgz（约 16 KB，含全部运行时文件）
+```
+
+把 `.tgz` 给对方，粘贴其绝对路径安装，或：
+
+```sh
+dsh plugin --profile <profile> add /path/to/dsh-price-tip-1.0.0.tgz
+```
+
+### 3. 从本地目录安装（要改代码时）
+
+```sh
+git clone https://github.com/hojas/dsh-price-tip
+```
+
+然后安装框里粘贴该目录路径。这样装的是 `link:`（软链到仓库），改完
+`node scripts/build-client.mjs` 刷新页面即可生效，不必重装。
+
+### 分发须知
+
+- **安装包只含运行时文件**：`package.json` 的 `files` 字段列出 8 个文件
+  （`index.js`、`client.js`、`cordis.patch.yml`、`icon.svg`、`locale/*.json`、`README.md`、`package.json`）。
+  GitHub / tarball 安装拿到的就是这些，足够直接运行，但不含 `src/`、`scripts/`、`test/`——
+  想改规则的人请用路径 3 克隆完整仓库。
+- **桌面版只能走界面**：`desktop` 配置档由 Electron 应用独占，命令行会拒绝写入
+  （`error: profile "desktop" is managed exclusively by the Electron application`）。
+- **装完刷新页面**。客户端 bundle 由 HMR 追加进引导图，刷新可确保生效。
+- **版本耦合**：样式只用 `--dsw-alias-*` 主题 token，槽位是 `sidebar.footer.action`，
+  并由 `dsh.client.inject` 依赖 DSH 自带的 `@deepseek-ai/dsh-client-ui-sidebar` 与
+  `@deepseek-ai/dsh-client-locale`。DSH 若改槽位名或 locale API，需要跟着调整。
+
 ## 自定义
 
 时段规则、节假日日历和价目表都在 **`src/policy.js`** 一处定义；改完必须重新生成被服务端读取的 `client.js`：
@@ -152,6 +208,12 @@ schedule: {
   请求该 URL 返回 `200 text/javascript`，内容与工作区 `client.js` 一致（仅多一行 Host 追加的 sourceMappingURL）。
 - **与真实 desktop 配置层组合**：把 `~/.dsh/profiles/desktop` 的清单/补丁复制到隔离配置档并加入本 bundle 后，
   `--dump-config` 正常组合出 `price-tip` 行，无冲突。
+- **远端安装（模拟其他人）**：`dsh plugin --profile web add https://github.com/hojas/dsh-price-tip`
+  → pnpm 从 codeload 取 tarball、依赖记为 `github:hojas/dsh-price-tip`、8 个运行时文件齐全（含 `client.js`）、
+  自动选入 `dsh.profile.bundles`；启动该配置档后引导图含该客户端行，下发 bundle 与仓库 `client.js`
+  前 30127 字节**完全一致**（`200 text/javascript`，仅多一行 Host 追加的 sourceMappingURL）。
+- **tarball 安装**：`pnpm pack` 产物安装后依赖记为 `file:/…/dsh-price-tip-1.0.0.tgz`，
+  同样自动选入 bundles 并组合出 `price-tip` 行。
 
 未验证（本会话没有浏览器控制能力）：
 
