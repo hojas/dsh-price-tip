@@ -331,6 +331,7 @@ test('the files field ships every runtime artifact and document', () => {
     'locale/zh.json',
     'locale/en.json',
     'README.md',
+    'README.en.md',
     'docs/development.md',
     'docs/verification.md',
   ];
@@ -344,16 +345,24 @@ test('the files field ships every runtime artifact and document', () => {
 });
 
 test('every document linked from the README exists', () => {
-  const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-  const links = [...readme.matchAll(/\]\((?!https?:)([^)#]+)\)/g)].map((match) => match[1]);
-  assert.ok(links.length >= 3, 'the README should link to the topic documents');
-  for (const target of links) {
-    statSync(path.join(ROOT, target));
+  // The English edition mirrors the canonical README, so it gets the same link check.
+  for (const file of ['README.md', 'README.en.md']) {
+    const readme = readFileSync(path.join(ROOT, file), 'utf8');
+    const links = [...readme.matchAll(/\]\((?!https?:)([^)#]+)\)/g)].map((match) => match[1]);
+    assert.ok(links.length >= 3, `${file} should link to the topic documents`);
+    for (const target of links) {
+      statSync(path.join(ROOT, target));
+    }
   }
 });
 
 test('the documents stay well-formed', () => {
-  const documents = ['README.md', 'docs/development.md', 'docs/verification.md'];
+  const documents = [
+    'README.md',
+    'README.en.md',
+    'docs/development.md',
+    'docs/verification.md',
+  ];
   for (const file of documents) {
     const text = readFileSync(path.join(ROOT, file), 'utf8');
     assert.match(text, /^# /m, `${file} needs a top-level heading`);
