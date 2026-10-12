@@ -1,5 +1,7 @@
 # dsh-price-tip — DeepSeek 价格时段提醒
 
+*[English](README.en.md) · 中文*
+
 DSH（DeepSeek Harness）插件：在 Web 界面**侧栏底部**常驻一个价格时段标记，显示 DeepSeek API 当前处于
 **空闲时段**还是**高峰时段**、距下次切换还有多久；点开是规则说明、当前生效的价目表，以及已登录
 DeepSeek 账户的余额。
